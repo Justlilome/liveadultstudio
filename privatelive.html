@@ -1,1 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta
+ http-equiv="Content-Security-Policy"
+ content="default-src 'self'; frame-src https:; media-src https:; img-src 'self' https: data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https:;"
+/>
+  <title>Private Live</title>
+  <style>
+    :root {
+      --background: #09090f;
+      --card: #151522;
+      --card-border: #29293a;
+      --text: #ffffff;
+      --muted: #a6a6b5;
+      --accent: #ff3158;
+      --success: #65e6a0;
+      --error: #ff8c9d;
+    }
 
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background:
+        radial-gradient(circle at top, #24243b 0%, var(--background) 48%);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 520px;
+    }
+
+    .card {
+      padding: 34px;
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      background: rgba(21, 21, 34, 0.96);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 14px var(--accent);
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: 34px;
+    }
+
+    .description {
+      margin: 0 0 28px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #d8d8e3;
+      font-size: 14px;
+    }
+
+    input {
+      width: 100%;
+      padding: 15px;
+      border: 1px solid #454557;
+      border-radius: 10px;
+      outline: none;
+      background: #0d0d16;
+      color: var(--text);
+      font-size: 16px;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(255, 49, 88, 0.18);
+    }
+
+    button {
+      width: 100%;
+      margin-top: 14px;
+      padding: 15px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--accent);
+      color: white;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #e6274d;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.65;
+    }
+
+    #message {
+      min-height: 22px;
+      margin-top: 16px;
+      font-size: 14px;
+    }
+
+    .stream-section {
+      display: none;
+      margin-top: 26px;
+    }
+
+    .stream-box {
+      overflow: hidden;
+      min-height: 270px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      background: #000;
+      color: var(--muted);
+      text-align: center;
+      padding: 24px;
+    }
+
+    .stream-box video,
+    .stream-box iframe {
+      width: 100%;
+      min-height: 270px;
+      border: 0;
+      border-radius: 10px;
+    }
+
+    .offline-message {
+      line-height: 1.6;
+    }
+
+    .security-note {
+      margin: 22px 0 0;
+      color: #858596;
+      font-size: 12px;
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-top: 20px;
+      color: #c7c7d4;
+      font-size: 14px;
+      text-decoration: none;
+    }
+
+    .back-link:hover {
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section class="card">
+      <div class="status">
+        <span class="status-dot"></span>
+        Private broadcast
+      </div>
+  <h1>Private Live</h1>
+
+  <p class="description">
+    Enter the passkey provided by the host to access this private broadcast.
+  </p>
+
+  <form id="accessForm" autocomplete="off">
+    <label for="passkey">Private passkey</label>
+
+    <input
+      id="passkey"
+      name="passkey"
+      type="password"
+      placeholder="Enter passkey"
+      autocomplete="current-password"
+      required
+    />
+
+    <button id="unlockButton" type="submit">
+      Unlock Stream
+    </button>
+  </form>
+
+  <div id="message" role="status" aria-live="polite"></div>
+
+  <section id="streamSection" class="stream-section">
+    <div class="stream-box">
+      <!--
+        Add your protected player here only after authentication.
+
+        Example:
+        <iframe
+          src="YOUR_PROTECTED_PLAYER_URL"
+          allow="autoplay; fullscreen"
+          allowfullscreen>
+        </iframe>
+
+        Do not put your OBS stream key here.
+      -->
+
+      <div class="offline-message">
+        The private stream player will appear here when the broadcast is live.
+      </div>
+    </div>
+  </section>
+
+  <p class="security-note">
+    Approved viewers only. Do not share this passkey or viewer link.
+  </p>
+
+  <a class="back-link" href="/">← Back to home</a>
+</section>
+
+  </main>
+  <script>
+    const accessForm = document.getElementById("accessForm");
+    const passkeyInput = document.getElementById("passkey");
+    const unlockButton = document.getElementById("unlockButton");
+    const message = document.getElementById("message");
+    const streamSection = document.getElementById("streamSection");
+
+    accessForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+
+      const passkey = passkeyInput.value.trim();
+
+      if (!passkey) {
+        message.textContent = "Enter your private passkey.";
+        message.style.color = "var(--error)";
+        return;
+      }
+
+      unlockButton.disabled = true;
+      unlockButton.textContent = "Checking...";
+      message.textContent = "";
+
+      /*
+        IMPORTANT:
+        This request must go to your backend or authentication provider.
+
+        Example:
+        const response = await fetch("/api/private-stream-access", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ passkey })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.authorized) {
+          throw new Error("Unauthorized");
+        }
+
+        document.querySelector(".stream-box").innerHTML = result.playerHtml;
+      */
+
+      message.textContent =
+        "The page is ready, but backend authentication still needs to be connected.";
+      message.style.color = "var(--error)";
+
+      unlockButton.disabled = false;
+      unlockButton.textContent = "Unlock Stream";
+    });
+  </script>
+</body>
+</html>
