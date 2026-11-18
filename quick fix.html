@@ -1,0 +1,149 @@
+/* ============================================================================
+   Live Studio — pay-per-minute meter
+   ----------------------------------------------------------------------------
+   MODEL (agreed 2026-11-18):
+     • First 60 seconds of a video are FREE (once per browser).
+     • After that, $0.50 per minute, drawn from the viewer's balance.
+     • The video pauses at every 60-second mark unless the balance covers
+       the next minute. A $5 top-up buys 10 minutes.
+     • Balance and paid minutes are kept in the browser (localStorage), so a
+       viewer keeps what they paid for if they refresh.
+
+   PAYMENTS — READ THIS:
+     This file is the METER only. It does not take real card payments, because
+     this site is static (GitHub Pages) and there is no server here to verify
+     a payment. Right now the "Top up $5" button adds $5 of TEST credit so
+     you can try the whole flow end to end.
+     To take real money you need one more piece — either:
+       (a) a Stripe Payment Link for $5 (you make it in Stripe, paste the
+           URL into TOPUP_URL below), plus a tiny backend that credits the
+           balance after Stripe confirms payment, or
+       (b) a Supabase Edge Function + Stripe webhook that does the same
+           automatically. Your site already uses Supabase for login, so (b)
+           fits what you have.
+     Ask Scout to build that backend piece when you are ready. Until then,
+     do not treat a top-up tap as a real payment.
+
+   SECURITY NOTE:
+     This meter runs in the viewer's browser, so a determined viewer could
+     bypass it (DevTools, direct video URL). It is a convenience gate, not
+     DRM. Real enforcement would need signed, expiring video URLs from a
+     server. For a small audience this is fine — just know the limit.
+
+   HOW TO INSTALL:
+     1. Put this file in the repo root (next to index.html).
+     2. In help.html, give the video you want to meter id="metered-video"
+        and paste the meter bar + top-up panel right after it (see below).
+     3. Add <script src="meter.js"></script> just before </body>.
+   ========================================================================== */
+(function () {
+  "use strict";
+
+  /* ---- Settings: change these numbers and the meter follows ---- */
+  var FREE_SECONDS = 60;      // free preview at the start of the video
+  var RATE_PER_MINUTE = 0.50; // price per paid minute
+  var TOPUP_AMOUNT = 5.00;    // what one top-up adds ($5 = 10 minutes)
+  var VIDEO_ID = "metered-video";
+  var TOPUP_URL = ""; // <-- paste your Stripe $5 Payment Link here when you have one
+
+  /* ---- Elements on the page (added in help.html) ---- */
+  var video = document.getElementById(VIDEO_ID);
+  if (!video) return; // no metered video on this page, do nothing
+
+  var balanceEl = document.getElementById("meter-balance");
+  var topupPanel = document.getElementById("meter-topup");
+  var topupBtn = document.getElementById("meter-topup-btn");
+  var demoNote = document.getElementById("meter-demo-note");
+
+  /* ---- Stored state (per browser, per video) ---- */
+  var BALANCE_KEY = "ls_balance";
+  var MINUTES_KEY = "ls_minutes_paid_" + VIDEO_ID;
+  var FREE_KEY = "ls_free_used_" + VIDEO_ID;
+
+  var balance = parseFloat(localStorage.getItem(BALANCE_KEY) || "0") || 0;
+  var minutesPaid = parseInt(localStorage.getItem(MINUTES_KEY) || "0", 10) || 0;
+  // Free 60s is once per browser. This session's free window is fixed at load.
+  var freeSecondsThisSession = localStorage.getItem(FREE_KEY) === "1" ? 0 : FREE_SECONDS;
+
+  function save() {
+    localStorage.setItem(BALANCE_KEY, balance.toFixed(2));
+    localStorage.setItem(MINUTES_KEY, String(minutesPaid));
+  }
+
+  function fmt(n) {
+    return "$" + n.toFixed(2);
+  }
+
+  function updateBalance() {
+    if (balanceEl) balanceEl.textContent = fmt(balance);
+  }
+
+  function showPanel() {
+    if (topupPanel) topupPanel.classList.add("open");
+  }
+
+  function hidePanel() {
+    if (topupPanel) topupPanel.classList.remove("open");
+  }
+
+  /* Last paid position: end of the free window + every minute paid for. */
+  function paidBoundary() {
+    return freeSecondsThisSession + minutesPaid * 60;
+  }
+
+  /* Core meter: runs on every timeupdate while the video plays. */
+  video.addEventListener("timeupdate", function () {
+    var t = video.currentTime;
+
+    // First time they watch past the free window, the free minute is spent.
+    if (freeSecondsThisSession === FREE_SECONDS && t > FREE_SECONDS) {
+      localStorage.setItem(FREE_KEY, "1");
+    }
+
+    // Still inside the free window: nothing to charge.
+    if (t <= freeSecondsThisSession) return;
+
+    // Whole paid minutes consumed so far (charged at the end of each minute).
+    var owedMinutes = Math.floor((t - freeSecondsThisSession) / 60);
+    if (owedMinutes <= minutesPaid) return;
+
+    var due = (owedMinutes - minutesPaid) * RATE_PER_MINUTE;
+
+    if (balance + 0.001 >= due) {
+      balance -= due;
+      minutesPaid = owedMinutes;
+      save();
+      updateBalance();
+      hidePanel();
+    } else {
+      // Not enough balance: stop at the last paid second and ask to top up.
+      video.pause();
+      video.currentTime = paidBoundary();
+      showPanel();
+    }
+  });
+
+  /* If they seek ahead past what they paid for, the same timeupdate check
+     pauses them and rewinds to the last paid second. Seeking back is free. */
+
+  /* ---- Top-up ---- */
+  if (topupBtn) {
+    topupBtn.addEventListener("click", function () {
+      if (TOPUP_URL) {
+        // Real payment link set: send them to pay. The balance is credited
+        // by the backend piece (see header) once Stripe confirms payment.
+        window.open(TOPUP_URL, "_blank");
+        return;
+      }
+      // Demo mode: no payment link set yet, so add test credit.
+      balance += TOPUP_AMOUNT;
+      save();
+      updateBalance();
+      if (demoNote) demoNote.style.display = "block";
+      hidePanel();
+      if (balance >= RATE_PER_MINUTE) video.play();
+    });
+  }
+
+  updateBalance();
+})();
